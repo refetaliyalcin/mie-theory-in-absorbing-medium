@@ -1,0 +1,49 @@
+clc
+clear all
+close all
+
+lambda=(0.5:0.1:20)*10^-6; %freespace wavelength of incident ray in meter 
+radius=2000*10^-9; %radius of particle in meter 
+[n_medium, k_medium] = PDMS_nk(lambda*10^6);
+n_pigment=graphite_n(lambda); %real refractive index of medium
+k_pigment=graphite_k(lambda); %imaginary refractive index of medium
+
+lambda_um=lambda*10^6; %for plot
+
+Qsca_abs=zeros(length(lambda),1);
+Qabs_abs=zeros(length(lambda),1);
+g_abs=zeros(length(lambda),1);
+Qsca_non=zeros(length(lambda),1);
+Qabs_non=zeros(length(lambda),1);
+g_non=zeros(length(lambda),1);
+
+V=4*pi*radius^3/3; %volume of a single sphere
+parfor i=1:length(lambda)
+    x=2*pi*n_medium(i)*radius/lambda(i); %size parameter
+    m=(n_pigment(i)+1i*k_pigment(i))/n_medium(i);
+    fonksiyon=Mie(m,x); %calculate Lorenz Mie theory
+    Qsca_non(i)=fonksiyon(2);%scattering efficiency
+    Qabs_non(i)=fonksiyon(3);%absorption efficiency
+    g_non(i)=fonksiyon(5);
+
+    x_vacuium = 2*pi*radius/lambda(i); %size parameter
+    file_to_call=sprintf('absMie %e %e %e %e %e 180',x_vacuium,n_pigment(i),k_pigment(i),n_medium(i),k_medium(i));
+    [x,y]=system(file_to_call); %calculate Lorenz Mie theory
+    Qsca_abs(i) = str2double(strtrim(extractBetween(y,"Qsca=","Qabs=")));
+    Qabs_abs(i) = str2double(strtrim(extractBetween(y,"Qabs=","g=")));
+    g_abs(i) = str2double(strtrim(extractBetween(y,"g=","S1")));
+end   
+
+figure %draw normal to diffuse R, T and A for normal incidence (first index in my case)
+plot(lambda_um,Qsca_non,'ok',lambda_um,Qabs_non,'or',lambda_um,Qsca_abs,'-k',lambda_um,Qabs_abs,'-r','LineWidth',2)
+xlim([min(lambda_um) max(lambda_um)])
+legend('Q_s_c_a_,_n_o_n_-_a_b_s','Q_a_b_s_,_n_o_n_-_a_b_s','Q_s_c_a_,_a_b_s','Q_a_b_s_,_a_b_s','Location', 'Best')
+xlabel('Wavelength [\mum]')
+ylabel('Efficiency, Q')
+
+figure %draw normal to diffuse R, T and A for normal incidence (first index in my case)
+plot(lambda_um,g_non,'ob',lambda_um,g_abs,'-b','LineWidth',2)
+xlim([min(lambda_um) max(lambda_um)])
+legend('g_n_o_n_-_a_b_s','g_a_b_s','Location', 'Best')
+xlabel('Wavelength [\mum]')
+ylabel('Asymmetry parameter, g')
